@@ -25,7 +25,7 @@ table.insert(help_lines, "")
 
 local rest_ui_directory = vim.fn.stdpath('data') .. '/rest-ui/'
 
--- NOTE: Lua, WTF man? no octal what so ever?
+-- NOTE: Lua, WTF man? no octals what so ever?
 local octal_0755 = 493
 
 local function get_parsable_collection(collection)
@@ -132,7 +132,7 @@ local function open_window()
 
 
   vim.api.nvim_buf_set_option(side_buf, 'bufhidden', 'wipe')
-  vim.api.nvim_buf_set_option(side_buf, 'filetype', 'help')
+  vim.api.nvim_buf_set_option(side_buf, 'filetype', 'restui')
   vim.api.nvim_win_set_option(side_win, 'number', false)
   vim.api.nvim_win_set_option(side_win, 'relativenumber', false)
 
