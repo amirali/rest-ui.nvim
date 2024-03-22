@@ -3,6 +3,8 @@ local uv = vim.uv or vim.loop
 local side_buf, side_win
 local file_buf, file_win
 
+local run_mode
+
 local collections = {}
 
 local base_lines = {'RestUI', '-- ? for help --'}
@@ -413,7 +415,14 @@ local function set_mappings()
 end
 
 
-local function setup()
+local function setup(opts)
+  opts = opts or {
+    triggers = {
+      on_save = "request", -- request/file
+    },
+  }
+  run_mode = opts.triggers.on_save
+
   local _, err = uv.fs_statfs(rest_ui_directory)
   if err ~= nil then
     uv.fs_mkdir(rest_ui_directory, octal_0755)
@@ -425,6 +434,18 @@ local function setup()
     vim.cmd('buffer ' .. side_buf)
   end, {})
   read_collections()
+
+  vim.api.nvim_create_autocmd("BufWritePost", {
+    group = vim.api.nvim_create_augroup("RestUIPostSave", {}),
+    pattern = {"*.http"},
+    callback = function()
+      if run_mode == "request" then
+        require("rest-nvim").run()
+      elseif run_mode == "file" then
+        require("rest-nvim").run_file()
+      end
+    end
+  })
 end
 
 return {
