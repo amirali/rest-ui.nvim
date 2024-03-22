@@ -14,6 +14,7 @@ local mappings = {
   z = 'expand_collapse_collection()',
   ['?'] = 'show_hide_help()',
   a = 'add_collection()',
+  x = 'delete_file()',
 }
 
 local show_help = false
@@ -31,6 +32,15 @@ local octal_0755 = 493
 local function get_parsable_collection(collection)
   collection.expanded = nil
   return collection
+end
+
+local function write_collection(collection)
+  collection.expanded = nil
+  local collection_json = vim.json.encode(collection)
+  local file = io.open(rest_ui_directory .. collection.name .. '.json', 'w')
+  if not file then return end
+  file:write(collection_json)
+  file:close()
 end
 
 local function read_collections()
@@ -118,6 +128,7 @@ local function add_collection()
 
   draw_side_panel()
 end
+
 
 local function open_window()
   vim.cmd.tabnew()
@@ -329,6 +340,41 @@ local function open_file()
   vim.cmd.edit(filepath)
 end
 
+
+local function delete_file()
+  local filename = vim.api.nvim_get_current_line()
+  local pure_filename = filename:gsub("^  %- ", "")
+  if pure_filename == filename then
+    print("'" .. filename .. "' is not a file")
+    return
+  end
+
+  local collection = get_collection_of_file()
+  if not collection then
+    error "no collection"
+    return
+  end
+
+  local filepath = get_filepath(collection, pure_filename)
+  if not filepath then
+    error "no filepath"
+    return
+  end
+
+  local index = 0
+  for i, file in ipairs(collection.files) do
+    if file.name == pure_filename then
+      index = i
+      break
+    end
+  end
+
+  table.remove(collection.files, index)
+  write_collection(collection)
+  os.remove(rest_ui_directory .. collection.name .. '/' .. pure_filename .. '.http')
+  draw_side_panel()
+end
+
 ---@diagnostic disable-next-line: unused-local, unused-function
 local function show_hide_help()
   local lines = vim.api.nvim_buf_get_lines(side_buf, 0, vim.api.nvim_buf_line_count(side_buf), false)
@@ -357,7 +403,7 @@ local function set_mappings()
       })
   end
   local other_chars = {
-    'b', 'c', 'd', 'e', 'f', 'g', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
+    'b', 'c', 'd', 'e', 'f', 'g', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'y',
   }
   for _,v in ipairs(other_chars) do
     vim.api.nvim_buf_set_keymap(side_buf, 'n', v, 'echo "undifiend"<cr>', { nowait = true, noremap = true, silent = true })
@@ -391,5 +437,6 @@ return {
   open_file = open_file,
   show_hide_help = show_hide_help,
   add_collection = add_collection,
-  collections = collections,
+  delete_file = delete_file,
+  _collections = collections,
 }
