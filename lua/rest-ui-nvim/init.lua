@@ -1,39 +1,3 @@
--- local has_rest_nvim, rest = pcall(require, "rest-nvim")
--- if not has_rest_nvim then
---   vim.api.nvim_err_writeln("rest-ui.nvim requires rest-nvim/rest.nvim")
---   return
--- end
---
--- local M ={}
---
--- local tempfile_prefix = "rest-ui-nvim"
---
---
--- function M.toggle()
---   local handle = io.popen("mktemp -t " .. tempfile_prefix)
---   local tempfile_path = handle:read("*a"):gsub('[\n\r]', ' ')
---   handle:close()
---
---   vim.api.nvim_command('tabnew ' .. tempfile_path)
---   local buf = vim.api.nvim_get_current_buf()
---
---   vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
---   vim.api.nvim_buf_set_option(buf, "filetype", "http")
--- end
---
--- function M.setup()
---   vim.api.nvim_create_user_command("RestUI", function() require("rest-ui-nvim").toggle() end, {})
---   vim.api.nvim_create_autocmd({"BufWritePost"}, {
---     pattern = "rest-ui-nvim.*",
---     callback = function(_)
---       require("rest-nvim").run()
---     end
---   })
--- end
---
--- return M
---
-
 local uv = vim.uv or vim.loop
 
 local side_buf, side_win
@@ -49,6 +13,7 @@ local mappings = {
   i = 'add_new_file()',
   z = 'expand_collapse_collection()',
   ['?'] = 'show_hide_help()',
+  a = 'add_collection()',
 }
 
 local show_help = false
@@ -116,7 +81,7 @@ local function open_collections()
   vim.api.nvim_buf_set_option(side_buf, 'modifiable', true)
 
   for _, collection in ipairs(collections) do
-    vim.api.nvim_buf_set_lines(side_buf, -1, -1, false, { collection.name })
+    vim.api.nvim_buf_set_lines(side_buf, -1, -1, false, { collection.name .. ' -' })
   end
 
   vim.api.nvim_buf_set_option(side_buf, 'modifiable', false)
@@ -137,6 +102,21 @@ local function draw_side_panel()
 
   read_collections()
   open_collections()
+end
+
+
+local function add_collection()
+  local collection_name = vim.fn.input("collection name: ")
+  local collection = {}
+  collection.name = collection_name
+  collection.files = {}
+  local collection_json = vim.json.encode(collection)
+  local file = io.open(rest_ui_directory .. collection_name .. '.json', 'w')
+  if not file then return end
+  file:write(collection_json)
+  file:close()
+
+  draw_side_panel()
 end
 
 local function open_window()
@@ -200,7 +180,7 @@ local function get_collection_of_file()
     return nil
   end
 
-  return get_collection_by_name(collection_name)
+  return get_collection_by_name(collection_name:gsub(" %-", ""):gsub(" %+", ""))
 end
 
 ---@diagnostic disable-next-line: unused-local, unused-function
@@ -221,6 +201,10 @@ local function add_new_file()
   end
 
   local filename = vim.fn.input("filename: ")
+
+  if not filename then
+    return
+  end
 
   local _, err = uv.fs_statfs(rest_ui_directory .. collection.name)
   if err ~= nil then
@@ -256,6 +240,8 @@ local function expand_collection(selected_collection)
   local line_number, _ = unpack(vim.api.nvim_win_get_cursor(side_win))
   local lines = vim.api.nvim_buf_get_lines(side_buf, 0, vim.api.nvim_buf_line_count(side_buf), false)
 
+  lines[line_number] = lines[line_number]:gsub(" %-", " %+")
+
   local index = 1
   for _, file in ipairs(selected_collection.files) do
     table.insert(lines, line_number + index, '  - ' .. file.name)
@@ -273,6 +259,8 @@ local function collapse_collection(selected_collection)
   local line_number, _ = unpack(vim.api.nvim_win_get_cursor(side_win))
   local lines = vim.api.nvim_buf_get_lines(side_buf, 0, vim.api.nvim_buf_line_count(side_buf), false)
 
+  lines[line_number] = lines[line_number]:gsub(" %+", " %-")
+
   for i = #selected_collection.files, 1, -1 do
     table.remove(lines, line_number + i)
   end
@@ -287,11 +275,12 @@ end
 ---@diagnostic disable-next-line: unused-local, unused-function
 local function expand_collapse_collection()
   local collection_name = vim.api.nvim_get_current_line()
+  local pure_collection_name = collection_name:gsub(" %-", ""):gsub(" %+", "")
 
-  local selected_collection = find_collection_by_name(collection_name)
+  local selected_collection = find_collection_by_name(pure_collection_name)
 
   if selected_collection == nil then
-    print("'" .. collection_name .. "' is not a collection")
+    print("'" .. pure_collection_name .. "' is not a collection")
     return
   end
 
@@ -368,7 +357,7 @@ local function set_mappings()
       })
   end
   local other_chars = {
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
+    'b', 'c', 'd', 'e', 'f', 'g', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
   }
   for _,v in ipairs(other_chars) do
     vim.api.nvim_buf_set_keymap(side_buf, 'n', v, 'echo "undifiend"<cr>', { nowait = true, noremap = true, silent = true })
@@ -401,5 +390,6 @@ return {
   expand_collapse_collection = expand_collapse_collection,
   open_file = open_file,
   show_hide_help = show_hide_help,
+  add_collection = add_collection,
   collections = collections,
 }
