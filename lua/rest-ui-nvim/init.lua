@@ -22,7 +22,7 @@ local mappings = {
 local show_help = false
 local help_lines = {}
 for k,v in pairs(mappings) do
-  table.insert(help_lines, " *" .. k .. ": " .. v)
+  table.insert(help_lines, " * " .. k .. ": " .. v)
 end
 table.insert(help_lines, "")
 
@@ -430,10 +430,10 @@ local function setup(opts)
 
   vim.api.nvim_create_user_command("RestUI", function()
     open_window()
+    read_collections()
     set_mappings()
     vim.cmd('buffer ' .. side_buf)
   end, {})
-  read_collections()
 
   vim.api.nvim_create_autocmd("BufWritePost", {
     group = vim.api.nvim_create_augroup("RestUIPostSave", {}),
