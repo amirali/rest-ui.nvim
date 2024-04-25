@@ -14,6 +14,11 @@ Simple UI for [rest-nvim](https://github.com/rest-nvim/rest.nvim/)
         ft = 'http',
         opts = {},
         tag = 'v1.2.1',
+    },
+    opts = {
+        triggers = {
+            on_save = "request"
+        }
     }
 }
 ```
